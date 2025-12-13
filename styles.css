@@ -1,0 +1,170 @@
+/* Student Activity to Observation Plugin Styles */
+
+/* Modal Styles */
+.student-activity-modal {
+  padding: 20px;
+  max-width: 700px;
+}
+
+.student-activity-modal h2 {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 12px;
+}
+
+.student-activity-description {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* Textarea */
+.student-activity-textarea-container {
+  margin-bottom: 16px;
+}
+
+.student-activity-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  resize: vertical;
+}
+
+.student-activity-textarea:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.student-activity-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+/* Preview */
+.student-activity-preview {
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.student-activity-preview h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.student-activity-preview-content {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--text-normal);
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Character Count Settings */
+.student-activity-char-count {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+}
+
+.student-activity-char-count .setting-item {
+  border: none;
+  padding: 0;
+}
+
+.student-activity-byte-estimate {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Button Container */
+.modal-button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Progress Modal */
+.student-activity-progress-modal {
+  padding: 20px;
+  text-align: center;
+  min-width: 300px;
+}
+
+.student-activity-progress-modal h2 {
+  margin-bottom: 20px;
+}
+
+.progress-text {
+  margin-bottom: 16px;
+  color: var(--text-normal);
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: var(--background-modifier-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--interactive-accent);
+  transition: width 0.3s ease;
+}
+
+/* Settings Info */
+.student-activity-info {
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.student-activity-info ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.student-activity-info li {
+  margin-bottom: 8px;
+}
+
+.student-activity-info li:last-child {
+  margin-bottom: 0;
+}
+
+/* Result Table Styles (in notes) */
+.markdown-preview-view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-preview-view th,
+.markdown-preview-view td {
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.markdown-preview-view th {
+  background-color: var(--background-secondary);
+  font-weight: 600;
+}
+
+.markdown-preview-view tr:hover {
+  background-color: var(--background-secondary-alt);
+}
