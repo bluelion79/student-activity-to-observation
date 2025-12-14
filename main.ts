@@ -183,6 +183,22 @@ function generateMarkdownTable(records: ObservationRecord[]): string {
   return table;
 }
 
+/**
+ * 구글 스프레드시트용 TSV 데이터 생성 (탭 구분)
+ */
+function generateTSVData(records: ObservationRecord[]): string {
+  let tsv = '학번\t성명\t학생활동기록\t교사관찰기록\t글자 수\t바이트 수\n';
+
+  for (const record of records) {
+    // 탭과 줄바꿈을 공백으로 대체하여 셀 구분 유지
+    const cleanActivity = record.activityContent.replace(/[\t\n\r]/g, ' ');
+    const cleanObservation = record.observation.replace(/[\t\n\r]/g, ' ');
+    tsv += `${record.studentId}\t${record.studentName}\t${cleanActivity}\t${cleanObservation}\t${record.charCount}\t${record.byteCount}\n`;
+  }
+
+  return tsv;
+}
+
 // ==================== AI Service ====================
 
 const SYSTEM_PROMPT = `당신은 학생을 깊이 이해하고 애정을 가지고 관찰하는 한국 고등학교 담임교사입니다.
@@ -532,10 +548,14 @@ class InputModal extends Modal {
 class ProgressModal extends Modal {
   progressText: HTMLElement | null = null;
   progressBar: HTMLElement | null = null;
+  progressBarFill: HTMLElement | null = null;
   progressPercentText: HTMLElement | null = null;
   statusText: HTMLElement | null = null;
+  studentListContainer: HTMLElement | null = null;
   currentIndex: number = 0;
   totalCount: number = 0;
+  completedStudents: string[] = [];
+  previousStudentName: string = '';
 
   constructor(app: App) {
     super(app);
@@ -546,31 +566,43 @@ class ProgressModal extends Modal {
     contentEl.empty();
     contentEl.addClass('student-activity-progress-modal');
 
-    // 제목
-    contentEl.createEl('h2', { text: '교사관찰기록 생성 중' });
+    // 헤더 영역
+    const headerDiv = contentEl.createDiv({ cls: 'progress-header' });
+    const iconSpan = headerDiv.createSpan({ cls: 'progress-icon' });
+    iconSpan.innerHTML = '✨';
+    headerDiv.createEl('h2', { text: '교사관찰기록 생성 중' });
 
-    // 현재 처리 중인 학생 정보
+    // 현재 처리 중인 학생 정보 (강조)
     this.progressText = contentEl.createEl('p', { cls: 'progress-text' });
     this.progressText.setText('AI 변환 준비 중...');
 
-    // 프로그레스 바 컨테이너
+    // 프로그레스 바 컨테이너 (원형 퍼센트 포함)
     const progressWrapper = contentEl.createDiv({ cls: 'progress-wrapper' });
 
-    const progressBarContainer = progressWrapper.createDiv({ cls: 'progress-bar-container' });
-    this.progressBar = progressBarContainer.createDiv({ cls: 'progress-bar' });
-    this.progressBar.style.width = '0%';
-
-    // 퍼센트 표시
-    this.progressPercentText = progressWrapper.createDiv({ cls: 'progress-percent' });
+    // 원형 프로그레스 표시
+    const circleContainer = progressWrapper.createDiv({ cls: 'progress-circle-container' });
+    this.progressPercentText = circleContainer.createDiv({ cls: 'progress-circle' });
     this.progressPercentText.setText('0%');
 
-    // 상태 텍스트
-    this.statusText = contentEl.createEl('p', { cls: 'progress-status' });
+    // 바형 프로그레스
+    const barSection = progressWrapper.createDiv({ cls: 'progress-bar-section' });
+    const progressBarContainer = barSection.createDiv({ cls: 'progress-bar-container' });
+    this.progressBar = progressBarContainer.createDiv({ cls: 'progress-bar-bg' });
+    this.progressBarFill = this.progressBar.createDiv({ cls: 'progress-bar-fill' });
+    this.progressBarFill.style.width = '0%';
+
+    // 진행 단계 표시
+    this.statusText = barSection.createEl('p', { cls: 'progress-status' });
     this.statusText.setText('잠시만 기다려주세요...');
+
+    // 완료된 학생 목록 (스크롤 가능)
+    const listSection = contentEl.createDiv({ cls: 'progress-list-section' });
+    listSection.createEl('h4', { text: '📝 변환 완료' });
+    this.studentListContainer = listSection.createDiv({ cls: 'progress-student-list' });
 
     // 안내 메시지
     const infoText = contentEl.createEl('p', { cls: 'progress-info' });
-    infoText.setText('AI가 학생활동 내용을 교사관찰기록 문체로 변환하고 있습니다.');
+    infoText.innerHTML = '🤖 AI가 학생활동 내용을 <strong>교사관찰기록 문체</strong>로 변환하고 있습니다.';
   }
 
   updateProgress(current: number, total: number, studentName: string) {
@@ -579,20 +611,50 @@ class ProgressModal extends Modal {
     const percentage = Math.round((current / total) * 100);
 
     if (this.progressText) {
-      this.progressText.setText(`${current} / ${total}명 - "${studentName}" 변환 중...`);
+      this.progressText.innerHTML = `<span class="current-student">🎯 ${studentName}</span> 변환 중... <span class="progress-count">(${current}/${total}명)</span>`;
     }
-    if (this.progressBar) {
-      this.progressBar.style.width = `${percentage}%`;
+    if (this.progressBarFill) {
+      this.progressBarFill.style.width = `${percentage}%`;
+      // 동적 색상 변화
+      if (percentage < 30) {
+        this.progressBarFill.style.background = 'linear-gradient(90deg, #ff6b6b, #ffa502)';
+      } else if (percentage < 70) {
+        this.progressBarFill.style.background = 'linear-gradient(90deg, #ffa502, #2ed573)';
+      } else {
+        this.progressBarFill.style.background = 'linear-gradient(90deg, #2ed573, #1e90ff)';
+      }
     }
     if (this.progressPercentText) {
       this.progressPercentText.setText(`${percentage}%`);
+      this.progressPercentText.style.background = `conic-gradient(var(--interactive-accent) ${percentage * 3.6}deg, var(--background-modifier-border) 0deg)`;
     }
     if (this.statusText) {
       if (current === total) {
-        this.statusText.setText('변환 완료! 결과를 저장하고 있습니다...');
+        this.statusText.innerHTML = '✅ 변환 완료! 결과를 저장하고 있습니다...';
       } else {
-        this.statusText.setText(`남은 학생: ${total - current}명`);
+        const remaining = total - current;
+        const estimatedTime = remaining * 2; // 약 2초/명 예상
+        this.statusText.innerHTML = `⏳ 남은 학생: <strong>${remaining}명</strong> (예상 ${estimatedTime}초)`;
       }
+    }
+
+    // 이전 학생이 완료되었으므로 이전 학생 이름을 목록에 추가
+    if (this.previousStudentName && this.studentListContainer) {
+      const studentTag = this.studentListContainer.createSpan({ cls: 'completed-student-tag' });
+      studentTag.setText(`✓ ${this.previousStudentName}`);
+      // 스크롤을 최신 항목으로
+      this.studentListContainer.scrollTop = this.studentListContainer.scrollHeight;
+    }
+    // 현재 학생 이름 저장 (다음 호출 시 완료 처리용)
+    this.previousStudentName = studentName;
+  }
+
+  // 마지막 학생 완료 처리
+  markLastStudentComplete() {
+    if (this.previousStudentName && this.studentListContainer) {
+      const studentTag = this.studentListContainer.createSpan({ cls: 'completed-student-tag' });
+      studentTag.setText(`✓ ${this.previousStudentName}`);
+      this.studentListContainer.scrollTop = this.studentListContainer.scrollHeight;
     }
   }
 
@@ -904,6 +966,8 @@ export default class StudentActivityPlugin extends Plugin {
       }
     }
 
+    // 마지막 학생 완료 표시
+    progressModal.markLastStudentComplete();
     progressModal.close();
 
     // 결과 노트 생성
@@ -933,10 +997,28 @@ export default class StudentActivityPlugin extends Plugin {
       filePath = `${this.settings.outputFolder}/${fileName}`;
     }
 
+    // TSV 데이터를 base64로 인코딩하여 저장 (복사 버튼용)
+    const tsvData = generateTSVData(records);
+    const encodedTSV = Buffer.from(tsvData).toString('base64');
+
     const content = `# 교사관찰기록 변환 결과
 
 생성일시: ${now.toLocaleString('ko-KR')}
 총 인원: ${records.length}명
+
+## 📋 구글 스프레드시트로 복사
+
+<div class="student-activity-copy-section">
+<button class="student-activity-copy-btn" data-tsv="${encodedTSV}">
+📋 클릭하여 복사하기
+</button>
+<span class="copy-status"></span>
+</div>
+
+> 위 버튼을 클릭하면 TSV 데이터가 클립보드에 복사됩니다.
+> 구글 스프레드시트에서 Ctrl+V로 붙여넣으면 열이 자동으로 구분됩니다.
+
+---
 
 ## 결과 테이블
 
@@ -956,5 +1038,44 @@ ${generateMarkdownTable(records)}
     // 생성된 파일 열기
     const leaf = this.app.workspace.getLeaf(false);
     await leaf.openFile(file);
+
+    // 복사 버튼 이벤트 등록
+    this.registerCopyButtonHandler();
+  }
+
+  registerCopyButtonHandler() {
+    // DOM이 준비될 때까지 약간의 딜레이
+    setTimeout(() => {
+      const copyButtons = document.querySelectorAll('.student-activity-copy-btn');
+      copyButtons.forEach((btn) => {
+        if (btn.hasAttribute('data-listener-attached')) return;
+        btn.setAttribute('data-listener-attached', 'true');
+
+        btn.addEventListener('click', async (e) => {
+          const button = e.target as HTMLElement;
+          const encodedTSV = button.getAttribute('data-tsv');
+          if (!encodedTSV) return;
+
+          try {
+            const tsvData = Buffer.from(encodedTSV, 'base64').toString('utf-8');
+            await navigator.clipboard.writeText(tsvData);
+
+            // 버튼 상태 변경
+            const originalText = button.textContent;
+            button.textContent = '✅ 복사 완료!';
+            button.classList.add('copied');
+
+            new Notice('📋 클립보드에 복사되었습니다! 구글 스프레드시트에 붙여넣기(Ctrl+V)하세요.');
+
+            setTimeout(() => {
+              button.textContent = originalText;
+              button.classList.remove('copied');
+            }, 2000);
+          } catch (error) {
+            new Notice('복사 실패: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+          }
+        });
+      });
+    }, 500);
   }
 }
