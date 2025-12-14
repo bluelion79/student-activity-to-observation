@@ -4,7 +4,7 @@
 
 ## 주요 기능
 
-- **AI 기반 문체 변환**: OpenAI GPT 또는 Anthropic Claude를 사용하여 학생활동 내용을 교사관찰기록 문체로 변환
+- **AI 기반 문체 변환**: OpenAI GPT, Anthropic Claude, Google Gemini, xAI Grok을 사용하여 학생활동 내용을 교사관찰기록 문체로 변환
 - **NEIS 기준 계산**: 글자 수 및 바이트 수를 나이스(NEIS) 기준에 맞춰 자동 계산
 - **일괄 처리**: 여러 학생의 활동 내용을 한 번에 변환
 - **테이블 형식 출력**: 구글 스프레드시트에 바로 붙여넣기 가능한 형식
@@ -22,7 +22,7 @@
 ### 1. API 설정
 
 1. 옵시디언 설정 → 학생활동 → 교사관찰기록 변환
-2. AI 제공자 선택 (OpenAI 또는 Claude)
+2. AI 제공자 선택 (OpenAI, Claude, Gemini, Grok)
 3. API 키 입력
 4. 기본 목표 글자 수 설정 (선택)
 
@@ -46,7 +46,7 @@
 
 변환 완료 후 자동으로 새 노트가 생성됩니다:
 
-- 테이블 형식으로 결과 표시 (학번, 이름, 교사관찰기록, 글자수, 바이트수)
+- 테이블 형식으로 결과 표시 (학번, 성명, 학생활동기록, 교사관찰기록, 글자 수, 바이트 수)
 - 통계 정보 포함
 
 ## 입력 데이터 형식
@@ -76,22 +76,56 @@
 - 역량 표현: "탐구 역량", "문제 해결 능력", "협력과 소통 역량"
 - 평가 표현: "깊이 있는", "우수한", "뛰어난", "인상적인", "돋보이는"
 
-## 지원 AI 모델
+## 지원 AI 모델 (2025년 12월 기준)
 
-### OpenAI
-- gpt-4o
-- gpt-4o-mini (기본값)
-- gpt-4-turbo
-- gpt-3.5-turbo
+### OpenAI (GPT)
+- GPT-5 (Reasoning) - 최신 추론 모델
+- GPT-5 Mini (Reasoning)
+- GPT-5 Nano (Reasoning)
+- GPT-4o
+- GPT-4o Mini (기본값)
+- GPT-4 Turbo
+- GPT-4
+- GPT-3.5 Turbo
 
-### Anthropic Claude
-- claude-3-5-sonnet-20241022 (기본값)
-- claude-3-opus-20240229
-- claude-3-haiku-20240307
+### Anthropic (Claude)
+- Claude Sonnet 4.5 (기본값, Recommended)
+- Claude Opus 4.1 - 가장 강력한 모델
+- Claude Opus 4
+- Claude Sonnet 4
+- Claude Haiku 4.5
+- Claude 3.7 Sonnet
+- Claude 3.5 Sonnet
+- Claude 3.5 Haiku (Fastest)
+- Claude 3 Opus
+- Claude 3 Haiku
+
+### Google (Gemini)
+- Gemini 2.5 Flash (기본값, Stable)
+- Gemini 2.5 Flash Lite
+- Gemini 2.0 Flash
+- Gemini 2.0 Flash (Image Gen)
+- Gemini 1.5 Pro
+- Gemini 1.5 Flash
+- Gemini 1.5 Flash 8B
+
+### xAI (Grok)
+- Grok 4
+- Grok 4.1 Fast (기본값, Recommended)
+- Grok 4.1 Fast (Non-Reasoning)
+- Grok 3
+- Grok 3 Mini
+- Grok Code Fast
+- Grok 2 Vision
+- Grok 2 Image
 
 ## 라이선스
 
 MIT License
+
+## 개발자
+
+**잘생김프로쌤**
 
 ## 문의
 

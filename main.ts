@@ -13,12 +13,79 @@ import {
 
 // ==================== Interfaces ====================
 interface StudentActivityPluginSettings {
-  apiProvider: 'openai' | 'claude';
+  apiProvider: 'openai' | 'claude' | 'gemini' | 'grok';
   apiKey: string;
   targetCharCount: number;
   outputFolder: string;
   modelId: string;
 }
+
+// ==================== Model Lists (Updated: 2025-12-14) ====================
+const MODEL_OPTIONS: Record<string, { id: string; name: string }[]> = {
+  openai: [
+    // GPT-5 Series (Reasoning Models)
+    { id: 'gpt-5', name: 'GPT-5 (Reasoning)' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini (Reasoning)' },
+    { id: 'gpt-5-nano', name: 'GPT-5 Nano (Reasoning)' },
+    // GPT-4o Series
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+    // GPT-4 Series
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+    { id: 'gpt-4', name: 'GPT-4' },
+    // Legacy
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+  ],
+  claude: [
+    // Claude 4.x Series (Latest)
+    { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (Recommended)' },
+    { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1' },
+    { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' },
+    // Claude 3.7 Series
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet' },
+    // Claude 3.5 Series
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Fastest)' },
+    // Claude 3 Series (Legacy)
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
+  ],
+  gemini: [
+    // Gemini 2.5 Series (Latest)
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Stable)' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+    // Gemini 2.0 Series
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+    { id: 'gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash (Image Gen)' },
+    // Gemini 1.5 Series
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B' },
+  ],
+  grok: [
+    // Grok 4.x Series (Latest)
+    { id: 'grok-4-0709', name: 'Grok 4' },
+    { id: 'grok-4-1-fast', name: 'Grok 4.1 Fast (Recommended)' },
+    { id: 'grok-4-1-fast-non-reasoning', name: 'Grok 4.1 Fast (Non-Reasoning)' },
+    // Grok 3 Series
+    { id: 'grok-3', name: 'Grok 3' },
+    { id: 'grok-3-mini', name: 'Grok 3 Mini' },
+    // Grok Code
+    { id: 'grok-code-fast-1', name: 'Grok Code Fast' },
+    // Grok 2 Series (Legacy)
+    { id: 'grok-2-vision-1212', name: 'Grok 2 Vision' },
+    { id: 'grok-2-image-1212', name: 'Grok 2 Image' },
+  ],
+};
+
+const DEFAULT_MODELS: Record<string, string> = {
+  openai: 'gpt-4o-mini',
+  claude: 'claude-sonnet-4-5-20250929',
+  gemini: 'gemini-2.5-flash',
+  grok: 'grok-4-1-fast',
+};
 
 interface StudentActivity {
   studentId: string;
@@ -29,6 +96,7 @@ interface StudentActivity {
 interface ObservationRecord {
   studentId: string;
   studentName: string;
+  activityContent: string;
   observation: string;
   charCount: number;
   byteCount: number;
@@ -52,24 +120,20 @@ function countChars(text: string): number {
 }
 
 /**
- * NEIS 기준 바이트 수 계산
- * - 한글: 3바이트
- * - 영문/숫자/특수문자/공백: 1바이트
+ * NEIS 기준 바이트 수 계산 (NEIS_WordCount 로직 사용)
+ * - 한글/한자 등: 3바이트 (escape 길이 > 4)
+ * - 영문/숫자/특수문자/공백/줄바꿈: 1바이트
  */
 function countBytes(text: string): number {
   let bytes = 0;
-  for (const char of text) {
-    const code = char.charCodeAt(0);
-    if (
-      (code >= 0xac00 && code <= 0xd7a3) || // 한글 음절
-      (code >= 0x1100 && code <= 0x11ff) || // 한글 자모
-      (code >= 0x3130 && code <= 0x318f) || // 한글 호환 자모
-      (code >= 0x4e00 && code <= 0x9fff) || // 한자
-      (code >= 0xf900 && code <= 0xfaff) // 한자 호환
-    ) {
-      bytes += 3;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charAt(i);
+    if (char === '\n') {
+      bytes += 1; // 줄바꿈
+    } else if (escape(char).length > 4) {
+      bytes += 3; // 한글/한자 등
     } else {
-      bytes += 1;
+      bytes += 1; // 영문/숫자/특수문자/공백
     }
   }
   return bytes;
@@ -104,15 +168,16 @@ function parseTSV(data: string): StudentActivity[] {
 }
 
 /**
- * 마크다운 테이블 생성
+ * 마크다운 테이블 생성 (학번, 성명, 학생활동기록, 교사관찰기록, 글자 수, 바이트 수)
  */
 function generateMarkdownTable(records: ObservationRecord[]): string {
-  let table = '| 학번 | 이름 | 교사관찰기록 | 글자수 | 바이트수 |\n';
-  table += '|------|------|-------------|--------|----------|\n';
+  let table = '| 학번 | 성명 | 학생활동기록 | 교사관찰기록 | 글자 수 | 바이트 수 |\n';
+  table += '|------|------|-------------|-------------|---------|----------|\n';
 
   for (const record of records) {
+    const escapedActivity = record.activityContent.replace(/\|/g, '\\|').replace(/\n/g, ' ');
     const escapedObservation = record.observation.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    table += `| ${record.studentId} | ${record.studentName} | ${escapedObservation} | ${record.charCount} | ${record.byteCount} |\n`;
+    table += `| ${record.studentId} | ${record.studentName} | ${escapedActivity} | ${escapedObservation} | ${record.charCount} | ${record.byteCount} |\n`;
   }
 
   return table;
@@ -120,22 +185,39 @@ function generateMarkdownTable(records: ObservationRecord[]): string {
 
 // ==================== AI Service ====================
 
-const SYSTEM_PROMPT = `당신은 한국 고등학교 교사입니다. 학생의 활동 내용을 교사 관찰 기록 문체로 변환해주세요.
+const SYSTEM_PROMPT = `당신은 학생을 깊이 이해하고 애정을 가지고 관찰하는 한국 고등학교 담임교사입니다.
+학생의 활동 내용을 바탕으로 교사 관찰 기록을 작성해주세요.
 
-[문체 특징]
-- "~함", "~보임", "~드러냄", "~보여줌", "~밝힘" 등의 종결어미 사용
-- 학생의 역량, 태도, 성장을 강조
-- 구체적인 활동 내용과 결과를 포함
-- 교육적 가치와 의미를 부여
+[핵심 원칙]
+- 인공지능이 작성한 것이 아닌, 교사가 학생을 직접 관찰하고 애정을 담아 작성한 기록처럼 보여야 합니다
+- 학생의 강점, 노력, 성장 과정을 따뜻하게 서술합니다
+- 객관적 사실에 기반하되, 교사의 긍정적 관점을 담습니다
 
-[역량 표현 예시]
-- "탐구 역량", "문제 해결 능력", "협력과 소통 역량", "자기 주도적 역량"
-- "깊이 있는", "우수한", "뛰어난", "인상적인", "돋보이는"
+[문체 규칙]
+- 서술형 종결어미 사용: "~함", "~임", "~남", "~보임", "~드러냄"
+- 제목, 머리말, 학생 이름 포함 금지
+- 3인칭 관찰자 시점으로 작성
+- 한 문단으로 자연스럽게 이어지도록 작성
 
-[주의사항]
-- 학생 이름은 기록에 포함하지 않습니다
-- 자연스럽고 진정성 있는 표현을 사용합니다
-- 추가 설명 없이 교사관찰기록만 출력합니다`;
+[내용 구성]
+1. 활동의 구체적 맥락과 참여 양상
+2. 학생이 보여준 역량이나 태도
+3. 활동을 통한 성장이나 발전 가능성
+
+[피해야 할 표현]
+- AI, VR, AR 등 영문 약어 → 인공지능, 가상현실, 증강현실 사용
+- 과도한 수식어나 빈 칭찬
+- 모든 학생에게 적용 가능한 일반적인 표현
+- 기계적이거나 정형화된 문장 패턴
+
+[좋은 예시 표현]
+- "탐구 과정에서 꼼꼼한 자료 조사와 논리적 분석력을 보여줌"
+- "모둠 활동 시 다양한 의견을 존중하며 협력적 태도로 참여함"
+- "스스로 문제를 발견하고 해결책을 모색하는 자기주도적 학습 역량을 갖춤"
+
+[출력 형식]
+- 추가 설명이나 머리말 없이 교사관찰기록 본문만 출력
+- 자연스러운 한 문단으로 구성`;
 
 async function callOpenAI(
   apiKey: string,
@@ -219,6 +301,94 @@ async function callClaude(
   return response.json.content[0].text.trim();
 }
 
+async function callGemini(
+  apiKey: string,
+  modelId: string,
+  activity: StudentActivity,
+  targetCharCount: number
+): Promise<string> {
+  const userPrompt = `${SYSTEM_PROMPT}
+
+[제약 조건]
+- 목표 글자 수: ${targetCharCount}자 (±10%)
+
+[입력]
+학번: ${activity.studentId}
+이름: ${activity.studentName}
+활동내용: ${activity.activityContent}
+
+[출력]
+교사관찰기록만 출력 (추가 설명 없이)`;
+
+  const response = await requestUrl({
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId || 'gemini-1.5-flash'}:generateContent?key=${apiKey}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: userPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      },
+    }),
+  });
+
+  if (response.status !== 200) {
+    throw new Error(`Gemini API 오류: ${response.status}`);
+  }
+
+  return response.json.candidates[0].content.parts[0].text.trim();
+}
+
+async function callGrok(
+  apiKey: string,
+  modelId: string,
+  activity: StudentActivity,
+  targetCharCount: number
+): Promise<string> {
+  const userPrompt = `[제약 조건]
+- 목표 글자 수: ${targetCharCount}자 (±10%)
+
+[입력]
+학번: ${activity.studentId}
+이름: ${activity.studentName}
+활동내용: ${activity.activityContent}
+
+[출력]
+교사관찰기록만 출력 (추가 설명 없이)`;
+
+  // Grok API는 OpenAI 호환 형식 사용
+  const response = await requestUrl({
+    url: 'https://api.x.ai/v1/chat/completions',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: modelId || 'grok-3-fast',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 2000,
+      temperature: 0.7,
+    }),
+  });
+
+  if (response.status !== 200) {
+    throw new Error(`Grok API 오류: ${response.status}`);
+  }
+
+  return response.json.choices[0].message.content.trim();
+}
+
 // ==================== Input Modal ====================
 
 class InputModal extends Modal {
@@ -296,17 +466,26 @@ class InputModal extends Modal {
     // 버튼 컨테이너
     const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
 
-    buttonContainer.createEl('button', { text: '취소' }).addEventListener('click', () => {
+    const cancelBtn = buttonContainer.createEl('button', {
+      text: '취소',
+      cls: 'student-activity-cancel-btn'
+    });
+    cancelBtn.addEventListener('click', () => {
       this.close();
     });
 
     const submitBtn = buttonContainer.createEl('button', {
-      text: '변환 시작',
-      cls: 'mod-cta',
+      text: '교사관찰기록 생성',
+      cls: 'mod-cta student-activity-submit-btn',
     });
     submitBtn.addEventListener('click', () => {
       if (!this.inputData.trim()) {
         new Notice('데이터를 입력해주세요.');
+        return;
+      }
+      const activities = parseTSV(this.inputData);
+      if (activities.length === 0) {
+        new Notice('유효한 데이터가 없습니다. 형식: 학번 [탭] 이름 [탭] 활동내용');
         return;
       }
       this.onSubmit(this.inputData, this.targetCharCount);
@@ -353,6 +532,8 @@ class InputModal extends Modal {
 class ProgressModal extends Modal {
   progressText: HTMLElement | null = null;
   progressBar: HTMLElement | null = null;
+  progressPercentText: HTMLElement | null = null;
+  statusText: HTMLElement | null = null;
   currentIndex: number = 0;
   totalCount: number = 0;
 
@@ -365,26 +546,53 @@ class ProgressModal extends Modal {
     contentEl.empty();
     contentEl.addClass('student-activity-progress-modal');
 
-    contentEl.createEl('h2', { text: '변환 진행 중...' });
+    // 제목
+    contentEl.createEl('h2', { text: '교사관찰기록 생성 중' });
 
+    // 현재 처리 중인 학생 정보
     this.progressText = contentEl.createEl('p', { cls: 'progress-text' });
-    this.progressText.setText('준비 중...');
+    this.progressText.setText('AI 변환 준비 중...');
 
-    const progressBarContainer = contentEl.createDiv({ cls: 'progress-bar-container' });
+    // 프로그레스 바 컨테이너
+    const progressWrapper = contentEl.createDiv({ cls: 'progress-wrapper' });
+
+    const progressBarContainer = progressWrapper.createDiv({ cls: 'progress-bar-container' });
     this.progressBar = progressBarContainer.createDiv({ cls: 'progress-bar' });
     this.progressBar.style.width = '0%';
+
+    // 퍼센트 표시
+    this.progressPercentText = progressWrapper.createDiv({ cls: 'progress-percent' });
+    this.progressPercentText.setText('0%');
+
+    // 상태 텍스트
+    this.statusText = contentEl.createEl('p', { cls: 'progress-status' });
+    this.statusText.setText('잠시만 기다려주세요...');
+
+    // 안내 메시지
+    const infoText = contentEl.createEl('p', { cls: 'progress-info' });
+    infoText.setText('AI가 학생활동 내용을 교사관찰기록 문체로 변환하고 있습니다.');
   }
 
   updateProgress(current: number, total: number, studentName: string) {
     this.currentIndex = current;
     this.totalCount = total;
+    const percentage = Math.round((current / total) * 100);
 
     if (this.progressText) {
-      this.progressText.setText(`${current}/${total} - ${studentName} 변환 중...`);
+      this.progressText.setText(`${current} / ${total}명 - "${studentName}" 변환 중...`);
     }
     if (this.progressBar) {
-      const percentage = (current / total) * 100;
       this.progressBar.style.width = `${percentage}%`;
+    }
+    if (this.progressPercentText) {
+      this.progressPercentText.setText(`${percentage}%`);
+    }
+    if (this.statusText) {
+      if (current === total) {
+        this.statusText.setText('변환 완료! 결과를 저장하고 있습니다...');
+      } else {
+        this.statusText.setText(`남은 학생: ${total - current}명`);
+      }
     }
   }
 
@@ -398,10 +606,21 @@ class ProgressModal extends Modal {
 
 class StudentActivitySettingTab extends PluginSettingTab {
   plugin: StudentActivityPlugin;
+  modelDropdown: any = null;
 
   constructor(app: App, plugin: StudentActivityPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  getProviderName(provider: string): string {
+    const names: Record<string, string> = {
+      openai: 'OpenAI',
+      claude: 'Anthropic',
+      gemini: 'Google',
+      grok: 'xAI',
+    };
+    return names[provider] || provider;
   }
 
   display(): void {
@@ -417,21 +636,32 @@ class StudentActivitySettingTab extends PluginSettingTab {
       .addDropdown((dropdown) => {
         dropdown.addOption('openai', 'OpenAI (GPT)');
         dropdown.addOption('claude', 'Anthropic (Claude)');
+        dropdown.addOption('gemini', 'Google (Gemini)');
+        dropdown.addOption('grok', 'xAI (Grok)');
         dropdown.setValue(this.plugin.settings.apiProvider);
         dropdown.onChange(async (value) => {
-          this.plugin.settings.apiProvider = value as 'openai' | 'claude';
+          this.plugin.settings.apiProvider = value as 'openai' | 'claude' | 'gemini' | 'grok';
+          // 제공자 변경 시 기본 모델로 설정
+          this.plugin.settings.modelId = DEFAULT_MODELS[value];
           await this.plugin.saveSettings();
           this.display(); // 설정 화면 새로고침
         });
       });
 
     // API 키
+    const apiKeyPlaceholders: Record<string, string> = {
+      openai: 'sk-...',
+      claude: 'sk-ant-...',
+      gemini: 'AIza...',
+      grok: 'xai-...',
+    };
+
     new Setting(containerEl)
       .setName('API 키')
-      .setDesc(`${this.plugin.settings.apiProvider === 'openai' ? 'OpenAI' : 'Anthropic'} API 키를 입력합니다.`)
+      .setDesc(`${this.getProviderName(this.plugin.settings.apiProvider)} API 키를 입력합니다.`)
       .addText((text) =>
         text
-          .setPlaceholder('sk-...')
+          .setPlaceholder(apiKeyPlaceholders[this.plugin.settings.apiProvider] || 'API 키')
           .setValue(this.plugin.settings.apiKey)
           .onChange(async (value) => {
             this.plugin.settings.apiKey = value;
@@ -439,25 +669,33 @@ class StudentActivitySettingTab extends PluginSettingTab {
           })
       );
 
-    // 모델 ID
+    // 모델 ID (드롭다운)
+    const currentProvider = this.plugin.settings.apiProvider;
+    const models = MODEL_OPTIONS[currentProvider] || [];
+
     new Setting(containerEl)
-      .setName('모델 ID')
-      .setDesc(
-        this.plugin.settings.apiProvider === 'openai'
-          ? 'OpenAI 모델 ID (예: gpt-4o, gpt-4o-mini)'
-          : 'Claude 모델 ID (예: claude-3-5-sonnet-20241022)'
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder(
-            this.plugin.settings.apiProvider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022'
-          )
-          .setValue(this.plugin.settings.modelId)
-          .onChange(async (value) => {
-            this.plugin.settings.modelId = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      .setName('모델')
+      .setDesc(`${this.getProviderName(currentProvider)}에서 사용할 AI 모델을 선택합니다.`)
+      .addDropdown((dropdown) => {
+        this.modelDropdown = dropdown;
+        for (const model of models) {
+          dropdown.addOption(model.id, model.name);
+        }
+        // 현재 설정된 모델이 목록에 있는지 확인
+        const modelExists = models.some(m => m.id === this.plugin.settings.modelId);
+        if (modelExists) {
+          dropdown.setValue(this.plugin.settings.modelId);
+        } else {
+          // 목록에 없으면 기본 모델로 설정
+          dropdown.setValue(DEFAULT_MODELS[currentProvider]);
+          this.plugin.settings.modelId = DEFAULT_MODELS[currentProvider];
+          this.plugin.saveSettings();
+        }
+        dropdown.onChange(async (value) => {
+          this.plugin.settings.modelId = value;
+          await this.plugin.saveSettings();
+        });
+      });
 
     // 기본 글자 수
     new Setting(containerEl)
@@ -602,25 +840,47 @@ export default class StudentActivityPlugin extends Plugin {
       try {
         let observation: string;
 
-        if (this.settings.apiProvider === 'openai') {
-          observation = await callOpenAI(
-            this.settings.apiKey,
-            this.settings.modelId || 'gpt-4o-mini',
-            activity,
-            targetCharCount
-          );
-        } else {
-          observation = await callClaude(
-            this.settings.apiKey,
-            this.settings.modelId || 'claude-3-5-sonnet-20241022',
-            activity,
-            targetCharCount
-          );
+        switch (this.settings.apiProvider) {
+          case 'openai':
+            observation = await callOpenAI(
+              this.settings.apiKey,
+              this.settings.modelId || DEFAULT_MODELS.openai,
+              activity,
+              targetCharCount
+            );
+            break;
+          case 'claude':
+            observation = await callClaude(
+              this.settings.apiKey,
+              this.settings.modelId || DEFAULT_MODELS.claude,
+              activity,
+              targetCharCount
+            );
+            break;
+          case 'gemini':
+            observation = await callGemini(
+              this.settings.apiKey,
+              this.settings.modelId || DEFAULT_MODELS.gemini,
+              activity,
+              targetCharCount
+            );
+            break;
+          case 'grok':
+            observation = await callGrok(
+              this.settings.apiKey,
+              this.settings.modelId || DEFAULT_MODELS.grok,
+              activity,
+              targetCharCount
+            );
+            break;
+          default:
+            throw new Error(`지원하지 않는 AI 제공자: ${this.settings.apiProvider}`);
         }
 
         records.push({
           studentId: activity.studentId,
           studentName: activity.studentName,
+          activityContent: activity.activityContent,
           observation: observation,
           charCount: countChars(observation),
           byteCount: countBytes(observation),
@@ -631,6 +891,7 @@ export default class StudentActivityPlugin extends Plugin {
         records.push({
           studentId: activity.studentId,
           studentName: activity.studentName,
+          activityContent: activity.activityContent,
           observation: `[변환 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}]`,
           charCount: 0,
           byteCount: 0,

@@ -91,40 +91,96 @@
 .modal-button-container {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--background-modifier-border);
 }
 
+/* Cancel Button */
+.student-activity-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Submit Button - 생성 버튼 강조 */
+.student-activity-submit-btn {
+  padding: 10px 24px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  min-width: 160px;
+}
+
+.student-activity-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(var(--interactive-accent-rgb), 0.3);
+}
+
 /* Progress Modal */
 .student-activity-progress-modal {
-  padding: 20px;
+  padding: 24px;
   text-align: center;
-  min-width: 300px;
+  min-width: 400px;
 }
 
 .student-activity-progress-modal h2 {
   margin-bottom: 20px;
+  font-size: 20px;
+  border: none;
 }
 
 .progress-text {
   margin-bottom: 16px;
   color: var(--text-normal);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Progress Wrapper */
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .progress-bar-container {
-  width: 100%;
-  height: 8px;
+  flex: 1;
+  height: 12px;
   background-color: var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
-  background-color: var(--interactive-accent);
+  background: linear-gradient(90deg, var(--interactive-accent), var(--interactive-accent-hover));
   transition: width 0.3s ease;
+  border-radius: 6px;
+}
+
+.progress-percent {
+  min-width: 45px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--interactive-accent);
+}
+
+.progress-status {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.progress-info {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 /* Settings Info */
@@ -167,4 +223,15 @@
 
 .markdown-preview-view tr:hover {
   background-color: var(--background-secondary-alt);
+}
+
+/* Animation for progress bar */
+@keyframes progressPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.progress-bar {
+  animation: progressPulse 1.5s ease-in-out infinite;
 }
